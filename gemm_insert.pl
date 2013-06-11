@@ -12,21 +12,23 @@ use MongoDB;
 ## GLOBAL VARIABLES
 	$MongoDB::BSON::use_binary = 4;
 	$|=1;
-        our $VERSION="0.07000";
-	our $GEM_PATH="/ngd-data/Craig_lab/dcraig/gedi";
-	open(CONF,"./conf.txt") or die "Can't fiend ./conf\n";
+	open(CONF,"./gemm.conf.txt") or die "Can't fiend ./conf\n";
         my %conf=();
+        print "gemm_insert.pl\n";
         while (<CONF>) {
           if (/^#/) {next}
           chomp;
           if (/(.*)=(.*)/) { $conf{$1}=$2 }
-          print "Conf: $1 $conf{$1} $2\n";
+          print "+Conf: $1 $conf{$1} $2\n";
         }
         close (CONF);
+	our $GEM_PATH=$conf{'gemm_path'};
+        our $VERSION=$conf{'version'};
         my $ANNOTATION_SERVER=$conf{'annotation_host'};
         my $SERVER=$conf{'mongodb_host'};
 	open (OUT,">$GEM_PATH/gemm_insert.$SERVER.out") or die "cant open log file";
 	print OUT "------gemm_insert version: $VERSION server: $SERVER-------\n";
+	print "+Database: $SERVER  Annotation DB: $ANNOTATION_SERVER\n";
 	our $MAX_THREADS=3;
 	my $timeout=10000000; 
 	our $CONN = MongoDB::Connection->new(host => "$SERVER");
@@ -47,20 +49,14 @@ use MongoDB;
 	our $CHECK = $DBGENOMES->get_collection('somatic');
 
 ## MAIN  
-
-	open (VCF_PATHS,"$GEM_PATH/$conf{'vcf_path'}") or die "Can't open $GEM_PATH/$conf{'vcf_path'}\n";
-	while (<VCF_PATHS>) {
-		chomp;
-		my $vcf_path=$_;
-		print OUT "-VCF Folder path: $vcf_path\n";
-		my @list=`find $vcf_path -name "*.vcf"`;
-		&clean_files(\@list,$MONGO_FILES, $DBGENOMES);
-		while (my $file=shift(@list)) {
-			chomp($file); 
-			if(threads->new(\&process_folder,$file)==1) {print "+File processing: $file\n"; } #else {print "-File skipped: $file\n";}
-#			if(process_folder($file)) {print "+File processing: $file\n"; } #else {print "-File skipped: $file\n";}
-			while (threads->list(threads::running) >= $MAX_THREADS) { sleep 10; }
-		}
+	print OUT "-VCF Folder path: $conf{'vcf_path'}\n";
+	my @list=`find $conf{'vcf_path'} -name "*.vcf"`;
+	&clean_files(\@list,$MONGO_FILES, $DBGENOMES);
+	while (my $file=shift(@list)) {
+		chomp($file); 
+		if(threads->new(\&process_folder,$file)==1) {print "+File processing: $file\n"; } #else {print "-File skipped: $file\n";}
+#		if(process_folder($file)) {print "+File processing: $file\n"; } #else {print "-File skipped: $file\n";}
+		while (threads->list(threads::running) >= $MAX_THREADS) { sleep 10; }
 	}
 	while (threads->list(threads::running) > 0) { sleep 10; }
 	foreach my $thr (threads->list(threads::joinable)) {

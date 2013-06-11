@@ -1,0 +1,6 @@
+version=0.7000
+gemm_path=/ngd-data/Craig_lab/dcraig/gedi
+annotation_host=spock.tgen.org:27017
+vcf_path=/ngd-data/Craig_lab/dcraig/gedi/VCF
+#mongodb_host=leeloo.tgen.org:27017
+mongodb_host=spock.tgen.org:27017
