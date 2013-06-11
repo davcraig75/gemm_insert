@@ -1,12 +1,19 @@
-#!/usr/bin/perl -w 
-use threads;
-use threads::shared;
+#!/usr/bin/perl 
 use MongoDB;
-$MAX_THREADS=1;
 $|=1;
 $VERSION="0.0200A";
-$host="mongodb://spock.tgen.org:27017";
-$CONN = MongoDB::MongoClient->new(host => $host);
+        open(CONF,"./conf.txt") or die "Can't fiend ./conf\n";
+        my %conf=();
+        while (<CONF>) {
+          if (/^#/) {next}
+          chomp;
+          if (/(.*)=(.*)/) { $conf{$1}=$2 }
+          print "Conf: $1 $conf{$1} $2\n";
+        }
+        close (CONF);
+
+$CONN = MongoDB::MongoClient->new(host => "mongodb://$conf{'mongodb_host'}");
+
 $DBGENOMES = $CONN->get_database('variants');
 collection_count('germline');
 collection_count('somatic');
@@ -14,7 +21,7 @@ collection_count('somatic');
 sub collection_count {
   $q=$_[0];
   $SNVS = $DBGENOMES->get_collection($q);
-  $cursor=$DBGENOMES->get_collection($q);
+  $cursor=$DBGENOMES->get_collection($q)->find();
   $c=0;
 
   while (my $doc=$cursor->next) {
@@ -49,6 +56,5 @@ REDUCE
     my $info = $DBGENOMES->run_command($cmd);
     my $tcur=$DBGENOMES->get_collection('foo')->find_one();
     my $count=$tcur->{'value'};
-    print "$gene $sample $count\n";
     $SNVS->update({"_id"=>$id},{'$set' => {'gene_count'=>int($count)}},{'upsert' => 1});
 }

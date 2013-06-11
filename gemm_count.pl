@@ -1,12 +1,19 @@
-#!/usr/bin/perl -w 
-use threads;
-use threads::shared;
+#!/usr/bin/perl 
 use MongoDB;
-$MAX_THREADS=1;
 $|=1;
 $VERSION="0.0200A";
 $timeout=50000000;
-$CONN = MongoDB::MongoClient->new(host => "mongodb://spock.tgen.org:27017",query_timeout =>$timeout,wtimeout =>$timeout);
+        open(CONF,"./conf.txt") or die "Can't fiend ./conf\n";
+        my %conf=();
+        while (<CONF>) {
+          if (/^#/) {next}
+          chomp;
+          if (/(.*)=(.*)/) { $conf{$1}=$2 }
+          print "Conf: $1 $conf{$1} $2\n";
+        }
+        close (CONF);
+
+$CONN = MongoDB::MongoClient->new(host => "mongodb://$conf{'mongodb_host'}",query_timeout =>$timeout,wtimeout =>$timeout);
 $DBGENOMES = $CONN->get_database('variants');
 collection_count('germline');
 #collection_count('somatic');
@@ -24,7 +31,7 @@ sub collection_count {
     $alt=$doc->{'alt'};
     $id=$doc->{'_id'};
     if (run_cur($chr,$hg19pos,$ref,$alt,$id,$DBGENOMES,$SNVS)) {
-      if ($c %10000 ==0 ) { print "c:$c\n";}
+      if ($c %100 ==0 ) { print "c:$c\n";}
       ++$c;
     }
   }

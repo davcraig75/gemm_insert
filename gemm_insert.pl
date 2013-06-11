@@ -10,24 +10,30 @@ use threads::shared;
 use MongoDB;
 # Version info
 ## GLOBAL VARIABLES
-
 	$MongoDB::BSON::use_binary = 4;
 	$|=1;
-	#if (exists($ARGV[0])) { $SERVER=$ARGV[0]; } else { $SERVER='localhost'; }
-	my $ANNOTATION_SERVER="spock.tgen.org";
-	my $SERVER="leeloo.tgen.org";
-	our $VERSION="0.07000";
+        our $VERSION="0.07000";
 	our $GEM_PATH="/ngd-data/Craig_lab/dcraig/gedi";
+	open(CONF,"./conf.txt") or die "Can't fiend ./conf\n";
+        my %conf=();
+        while (<CONF>) {
+          if (/^#/) {next}
+          chomp;
+          if (/(.*)=(.*)/) { $conf{$1}=$2 }
+          print "Conf: $1 $conf{$1} $2\n";
+        }
+        close (CONF);
+        my $ANNOTATION_SERVER=$conf{'annotation_host'};
+        my $SERVER=$conf{'mongodb_host'};
 	open (OUT,">$GEM_PATH/gemm_insert.$SERVER.out") or die "cant open log file";
 	print OUT "------gemm_insert version: $VERSION server: $SERVER-------\n";
 	our $MAX_THREADS=3;
 	my $timeout=10000000; 
-	our $CONN = MongoDB::Connection->new(host => "$SERVER:27017");
-	our $CONNA = MongoDB::Connection->new(host => "$ANNOTATION_SERVER:27017");
+	our $CONN = MongoDB::Connection->new(host => "$SERVER");
+	our $CONNA = MongoDB::Connection->new(host => "$ANNOTATION_SERVER");
 	$CONN->query_timeout($timeout); $CONN->wtimeout($timeout);
 	our $DBGENOMES = $CONN->get_database('variants');
 	our $DBSAMPLES = $CONN->get_database('samples');
-#	if (exists($ARGV[1])) { if ($ARGV[1] eq "drop") { $DBGENOMES->drop; exit 1; } }
 	our $ANNOTATE = $CONNA->get_database('annotation');
 	our $MONGO_FILES = $DBGENOMES->get_collection('files');
 	our $PATIENTS = $DBSAMPLES->get_collection('patients');
@@ -40,10 +46,9 @@ use MongoDB;
 	our $TCGADB = $ANNOTATE->get_collection('tcga');
 	our $CHECK = $DBGENOMES->get_collection('somatic');
 
-
 ## MAIN  
 
-	open (VCF_PATHS,"$GEM_PATH/conf/vcf_paths.txt");
+	open (VCF_PATHS,"$GEM_PATH/$conf{'vcf_path'}") or die "Can't open $GEM_PATH/$conf{'vcf_path'}\n";
 	while (<VCF_PATHS>) {
 		chomp;
 		my $vcf_path=$_;
@@ -64,9 +69,9 @@ use MongoDB;
 	close (VCF_PATHS);
 	print "Done.\n";
 	close (OUT);
-    my $SNVS = $DBGENOMES->get_collection('somatic');
+        my $SNVS = $DBGENOMES->get_collection('somatic');
         indexing($SNVS);
-    my $SNVS = $DBGENOMES->get_collection('germline');
+        my $SNVS = $DBGENOMES->get_collection('germline');
         indexing($SNVS);
 
 
