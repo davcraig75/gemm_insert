@@ -2,7 +2,7 @@
 use MongoDB;
 $|=1;
 $VERSION="0.0200A";
-        open(CONF,"./conf.txt") or die "Can't fiend ./conf\n";
+        open(CONF,"./gemm.conf.txt") or die "Can't fiend ./conf\n";
         my %conf=();
         while (<CONF>) {
           if (/^#/) {next}

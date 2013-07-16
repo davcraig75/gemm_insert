@@ -2,8 +2,18 @@
 use MongoDB;
 $|=1;
 $VERSION="0.0200A";
+$sample="NONE";
+for ($i=0;$i<=$#ARGV;++$i) {
+  if ($ARGV[$i] eq "-s") {
+    ++$i;
+    $sample=$ARGV[$i];
+  }
+}
+foreach $arg (@ARGV) {
+   if $arg
+}
 $timeout=50000000;
-        open(CONF,"./conf.txt") or die "Can't fiend ./conf\n";
+        open(CONF,"./gemm.conf.txt") or die "Can't fiend ./conf\n";
         my %conf=();
         while (<CONF>) {
           if (/^#/) {next}
@@ -16,14 +26,17 @@ $timeout=50000000;
 $CONN = MongoDB::MongoClient->new(host => "mongodb://$conf{'mongodb_host'}",query_timeout =>$timeout,wtimeout =>$timeout);
 $DBGENOMES = $CONN->get_database('variants');
 collection_count('germline');
-#collection_count('somatic');
+collection_count('somatic');
 
 sub collection_count {
   $q=$_[0];
   $SNVS = $DBGENOMES->get_collection($q);
-  $cursor=$DBGENOMES->get_collection($q)->find();
+  if ($sample ne "NONE") {
+    $cursor=$DBGENOMES->get_collection($q)->find();
+  } else {
+    $cursor=$DBGENOMES->get_collection($q)->find({'sample'=>$sample);
+  }
   $c=0;
-
   while (my $doc=$cursor->next) {
     $chr=$doc->{'chr'};
     $hg19pos=$doc->{'hg19pos'};
@@ -54,9 +67,9 @@ my $reduce = <<REDUCE;
     }
 REDUCE
 
-   my $cmd= Tie::IxHash->new("mapreduce"=>$q,"map" => $map, "reduce" => $reduce, 'query'=> {'chr'=>$chr,'hg19pos'=> $hg19pos,'alt'=>$alt,'ref'=>$ref},'out'=>"foo");
+   my $cmd= Tie::IxHash->new("mapreduce"=>$q,"map" => $map, "reduce" => $reduce, 'query'=> {'chr'=>$chr,'hg19pos'=> $hg19pos,'alt'=>$alt,'ref'=>$ref},'out'=>"foo1");
     my $info = $DBGENOMES->run_command($cmd);
-    my $tcur=$DBGENOMES->get_collection('foo')->find_one();
+    my $tcur=$DBGENOMES->get_collection('foo1')->find_one();
     my $count=$tcur->{'value'};
     $SNVS->update({"_id"=>$id},{'$set' => {'total_count'=>int($count)}});
 }
