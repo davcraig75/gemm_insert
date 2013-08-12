@@ -9,11 +9,9 @@ for ($i=0;$i<=$#ARGV;++$i) {
     $sample=$ARGV[$i];
   }
 }
-foreach $arg (@ARGV) {
-   if $arg
-}
 $timeout=50000000;
-        open(CONF,"./gemm.conf.txt") or die "Can't fiend ./conf\n";
+        open(CONF,"/ngd-data/GEM/gemm.conf.txt") or die "Can't fiend ./conf\n";
+
         my %conf=();
         while (<CONF>) {
           if (/^#/) {next}
@@ -31,11 +29,14 @@ collection_count('somatic');
 sub collection_count {
   $q=$_[0];
   $SNVS = $DBGENOMES->get_collection($q);
-  if ($sample ne "NONE") {
+  if ($sample eq "NONE") {
     $cursor=$DBGENOMES->get_collection($q)->find();
+    $countsDB=$DBGENOMES->get_collection($q)->count();
   } else {
-    $cursor=$DBGENOMES->get_collection($q)->find({'sample'=>$sample);
+    $cursor=$DBGENOMES->get_collection($q)->find({'sample'=>$sample});
+    $countsDB=$DBGENOMES->get_collection($q)->count({'sample'=>$sample});
   }
+  print "sample: $sample counts: $countsDB\n";
   $c=0;
   while (my $doc=$cursor->next) {
     $chr=$doc->{'chr'};
@@ -43,33 +44,8 @@ sub collection_count {
     $ref=$doc->{'ref'};
     $alt=$doc->{'alt'};
     $id=$doc->{'_id'};
-    if (run_cur($chr,$hg19pos,$ref,$alt,$id,$DBGENOMES,$SNVS)) {
-      if ($c %100 ==0 ) { print "c:$c\n";}
-      ++$c;
-    }
-  }
-}
-sub run_cur {
-my ($chr,$hg19pos,$ref,$alt,$id,$DBGENOMES,$SNVS)=@_;
-my $map = <<MAP;
-  function() {
-       emit(this.id,1);
-  }
-MAP
-
-my $reduce = <<REDUCE;
-    function(prev,current) {
-        count = 0;
-        current.forEach(function(item) {
-            count = count+1;
-        });
-        return count;
-    }
-REDUCE
-
-   my $cmd= Tie::IxHash->new("mapreduce"=>$q,"map" => $map, "reduce" => $reduce, 'query'=> {'chr'=>$chr,'hg19pos'=> $hg19pos,'alt'=>$alt,'ref'=>$ref},'out'=>"foo1");
-    my $info = $DBGENOMES->run_command($cmd);
-    my $tcur=$DBGENOMES->get_collection('foo1')->find_one();
-    my $count=$tcur->{'value'};
+    $count=$DBGENOMES->get_collection($q)->count({'chr'=>$chr,'hg19pos'=> $hg19pos,'alt'=>$alt,'ref'=>$ref});
     $SNVS->update({"_id"=>$id},{'$set' => {'total_count'=>int($count)}});
+    #if (run_cur($chr,$hg19pos,$ref,$alt,$id,$DBGENOMES,$SNVS)) { if ($c %1000 ==0 ) { print "c:$q $c\n";} ++$c; }
+  }
 }
